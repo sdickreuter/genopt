@@ -60,7 +60,8 @@ import strformat
 import random
 import times
 import stats
-import utils
+import genopt/utils
+
 
 const crossover_size = 0.7
 const mutation_rate = 0.5

@@ -1,4 +1,6 @@
-
+import sequtils
+import algorithm
+import math
 
 proc zeros*(n: int): seq[float] =
     result = newSeq[float](n)
@@ -35,3 +37,17 @@ proc `[]`*[T](s: seq[T], slice: seq[int]): seq[T] {.inline.} =
     result = newSeq[T](len(slice))
     for i in 0..<result.len:
       result[i] = s[slice[i]]
+
+
+proc cmp*(a, b: float): int =
+    if classify(a) == fcNan:
+        result = 1
+    elif classify(b) == fcNan:
+        result = -1
+    else:
+        if a > b:
+            result = 1
+        elif a < b:
+            result = -1
+        elif a == b:
+            result = 0
