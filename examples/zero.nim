@@ -1,8 +1,3 @@
-# genopt
-Nim Package for genetic/evolutionary Optimization
-
-small example:
-```nim
 import gnuplot, os
 import genopt
 import genopt/utils
@@ -42,5 +37,3 @@ cmd "set logscale xy"
 cmd "set terminal png size 500,500"
 cmd "set output 'convergence.png'"
 plot t, conv
-
-```
