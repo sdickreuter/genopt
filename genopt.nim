@@ -61,45 +61,48 @@ import random
 import times
 import stats
 import genopt/utils
+import genopt/genoptions
 
-
-const crossover_size = 0.7
-const mutation_rate = 0.5
-const report_every = 50
-const max_iter = 5000
-const starting_sigma = 4.0
-
-const max_val = 10.0
-const min_val = -10.0
 
 
 type 
+    ## Type for proc used to calculate the fitness of am individual of the population
     FitnessFunction* = proc(s: seq[float]): float
 
+    ## Type which holds the the whole population with every individual being a seq[float]
     Population* = seq[seq[float]]
 
 
 var
+    ## global variable which holds the options for the algorithm
+    options: Genoptions
+
+    ## global variable which points to the fitnessfunction to be used
     fitnessfunction*: proc(s: seq[float]): float
-    handleunfit*: proc(unfit: seq[float]): seq[float]
+    
+    #handleunfit*: proc(unfit: seq[float]): seq[float]
 
 
-proc handleunfit_proc(unfit: seq[float]): seq[float] =
-    return unfit
+options = initGenoptions()
 
-handleunfit = handleunfit_proc
+
+#proc handleunfit_proc(unfit: seq[float]): seq[float] =
+#    return unfit
+
+#handleunfit = handleunfit_proc
 
 
 
 proc recombine(seq1,seq2 : seq[float]) : seq[float] =
+    ## recombines two seqs and generates a "child" 
+    ## seq1 and seq2 are combined such that properties from seq1 dominate in the child
     var 
         k: int
         n_crossover: int
         alpha: float
 
     result = zeros(len(seq1))
-    n_crossover = int( float(len(seq1)) * crossover_size)
-    #n_crossover = len(seq1)
+    n_crossover = int( float(len(seq1)) * options.crossover_size)
     for i in 0..<n_crossover:
         k = rand(len(seq1)-1)
         alpha = 0.75#rand(1.0)#0.5
@@ -107,10 +110,10 @@ proc recombine(seq1,seq2 : seq[float]) : seq[float] =
         #result2[k] = alpha * seq2[k] + (1 - alpha) * seq1[k]
 
 
-proc mutate(s: var seq[float], sigma: float, mutation_rate = mutation_rate) =
-    proc rev_sigmoidal(x: float): float =
-        result = 0.8 / (exp((-x+0.5)*15.0) + 1.0) + 0.1
-
+proc mutate(s: var seq[float], sigma: float, mutation_rate = options.mutation_rate) =
+    ## mutate a seq, which means to add a random amount to each element of the seq
+    ## sigma defines the amplitude of the random amount while mutation_rate 
+    ##defines how many elements are mutated 
     var 
         mutation = 0.0
 
@@ -126,42 +129,30 @@ proc mutate(s: var seq[float], sigma: float, mutation_rate = mutation_rate) =
             mutation = (rand(1.0) - 0.5)*2.0 * sigma
             s[i] += mutation
 
-            #if mutation > 0.0:
-            #    s[i] += rev_sigmoidal(mutation)
-            #else:
-            #    s[i] += -rev_sigmoidal(-mutation)
-
-            #mutation = 1.0 - (rand(0.3) - 0.15) * sigma
-            #s[i] *= mutation
-
 
 proc recombine_population(population: var Population) =
-        # n_recombination = int(population.shape[1]/3)
-        # n_recombination = int(population.shape[1])
+    ## recombine individual of whole population
+    ## fitter individuals don't get recombined and dominate the
+    ## properties of the children
     var
         n,k,l: int
         i_top,i_med: int
         child: seq[float]
 
-    n = len(population)
-    #for i in 0..4:
-    #    population[^(i+1)] = child        
+    n = len(population)   
 
     for i in countdown(n-1,4):
         i_top = rand(4)
         #i_med = rand(int(  n / 2 ))
         i_med = rand(n-1)
-        #echo(itop, " ", i_med)
-        #echo((2 * i+1), " ",(2 * i+2))
         child = recombine(population[i_top], population[i_med])
         #child = recombine(population[k], population[l])
         population[i] = child
 
 
 proc mutate_population(population: var Population, sigma: float)=
-    # for i in prange(population.shape[1]):
-    #    population[:, i] = mutate(population[:, i], sigma)
-
+    ## mutate population
+    ## fitter individuals don't get mutated or mutated to a lesser extend (smaller sigma)
     for i in 4..<len(population):
         # if i < int(population.shape[1]/3):
             if i < 6:
@@ -173,21 +164,26 @@ proc mutate_population(population: var Population, sigma: float)=
 
 
 proc check_limits(population: var Population)=
+    ## check limits of a population and set values accordingly
     for j in 0..<len(population):
         for i in 0..<len(population[0]):
-            if population[j][i] < min_val:
-                population[j][i] = min_val
-            if population[j][i] > max_val:
-                population[j][i] = max_val    
+            if population[j][i] < options.min_val:
+                population[j][i] = options.min_val
+            if population[j][i] > options.max_val:
+                population[j][i] = options.max_val    
 
 
 proc calc_fitness(population: Population): seq[float] =
+    ## calculate fitness of every individual of a population using the globally
+    ## defined "fitnessfunction"
     result = zeros(len(population))
     for i in 0..<len(population):
         result[i] = fitnessfunction(population[i])
 
 
-proc genpopulation*(initial: seq[float],n: int, sigma=(max_val-min_val)/1.5): Population =
+proc genpopulation*(initial: seq[float],n: int, sigma=(options.max_val-options.min_val)/1.5): Population =
+    ## generate new population
+    ## takes a initial individual and mutates it to generate a broad spectrum of individuals
     for i in 0..<n:
         result.add(initial)
         mutate(result[i],sigma,1.0)
@@ -196,6 +192,7 @@ proc genpopulation*(initial: seq[float],n: int, sigma=(max_val-min_val)/1.5): Po
 
 
 proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
+    ## iterates the genetic optimization until maxiter is reached or the fitness reaches a threshold
     var
         logpoints: seq[int]
         checkpoints: seq[int]
@@ -210,78 +207,89 @@ proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
         correlation: float
 
     # At which points to report on the progress?
-    logpoints = arange(report_every, max_iter, report_every)
-    checkpoints = arange(50, max_iter, 50)
+    logpoints = arange(options.report_every, options.max_iter, options.report_every)
+    
+    # At which points to calculate slope and correlation of the convergence and adjust sigma
+    checkpoints = arange(50, options.max_iter, 50)
 
     # List containing the convergence data for each iteration
-    convergence = zeros(max_iter)
+    convergence = zeros(options.max_iter)
 
     # List containing the required time for each iteration
-    t = zeros(max_iter)
+    t = zeros(options.max_iter)
 
     var
-        sigma = starting_sigma
+        sigma = options.starting_sigma
     
     let start_time = now()
 
 
-    for i in 0..<max_iter:
+    for i in 0..<options.max_iter:
 
         mutate_population(p, sigma)
         check_limits(p)
 
         fitness = calc_fitness(p)
         
+        # calculate and save sorted indices 
         sorted_ind = argsort(fitness)
 
+        # rearange fitness and population p by according to fitness
         fitness = fitness[sorted_ind]
         p = p[sorted_ind]
 
+        # check for unfit (fitness == fcNan) individuals and replace them with new ones
         for i in 0..<len(p):
             if classify(fitness[i]) == fcNan:
                 #p[i] = handleunfit(p[i]) 
-                #fitness[i] = 100
                 p[i] = recombine(p[rand(4)],p[rand(4)])
                 fitness[i] = 100
 
         recombine_population(p)
 
-        mean_fitness = 0
-        for i in 0..<len(fitness):
-            mean_fitness += fitness[i]
-        mean_fitness /= float(len(fitness))
+        # calculate mean fitness
+        #mean_fitness = 0
+        #for i in 0..<len(fitness):
+        #    mean_fitness += fitness[i]
+        #mean_fitness /= float(len(fitness))
 
         convergence[i] = fitness[0]
 
         t[i] = (float( inMicroseconds(now() - start_time) )/1e6)
-
+        
+        # fitness threshold for stopping the iteration
         if fitness[0] < 0.0000000001:
             break
 
         if i < 500:
-            sigma = starting_sigma   # 1
+            sigma = options.starting_sigma   # 1
         #elif i < 1000:
         #    sigma = starting_sigma / 2 # 0.5
         else:
         #if i>100:
             if i in checkpoints:
+                
+                # calculate slope and correlation of the last 100 fitness-values
                 indices = arange(i - 100, i, 1)
                 linreg.push(t[indices], convergence[indices])
                 slope = linreg.slope()
                 correlation = abs(linreg.correlation())
                 linreg.clear()
+                
+                # modify sigma to hopefully get better convergence
                 if slope > 0 and correlation > 0.1:
-                    if sigma > starting_sigma * 0.000001:
+                    if sigma > options.starting_sigma * 0.000001:
                         sigma *= 0.95
 
                 if slope > 0 and correlation < 0.01:
-                    if sigma < starting_sigma:
+                    if sigma < options.starting_sigma:
                         sigma *= 1.05
  
-       
+        # output info
         if i in logpoints:
             echo(fmt"i: {i:6d}, best: {fitness[0]:4.6f}, sigma: {sigma:4.6f}, corr: {correlation:1.6f}, slope: {slope:1.6f},")
 
+    # return best individual as well as time and convergence data
     result = (p[0], t, convergence)
 
 
