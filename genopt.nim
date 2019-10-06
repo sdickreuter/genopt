@@ -75,7 +75,7 @@ type
 
 var
     ## global variable which holds the options for the algorithm
-    options: Genoptions
+    options*: Genoptions
 
     ## global variable which points to the fitnessfunction to be used
     fitnessfunction*: proc(s: seq[float]): float

@@ -4,6 +4,10 @@ Nim Package for genetic/evolutionary Optimization
 small example:
 ```nim
 import gnuplot, os
+import genopt/utils
+import genopt/genoptions
+
+options.maxiter = 2000
 
 var
     x,y,z: seq[float]
