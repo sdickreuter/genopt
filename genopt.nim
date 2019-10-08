@@ -261,12 +261,13 @@ proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
         if fitness[0] < 0.0000000001:
             break
 
-        if i < 500:
-            sigma = options.starting_sigma   # 1
+        #if i < 500:
+        #    sigma = options.starting_sigma   # 1
         #elif i < 1000:
         #    sigma = starting_sigma / 2 # 0.5
-        else:
+        #else:
         #if i>100:
+        if true:
             if i in checkpoints:
                 
                 # calculate slope and correlation of the last 100 fitness-values

@@ -21,7 +21,7 @@ for i in 0..<n:
 
 
 var 
-    # sinus paramters [Amp, Freq, C]
+    # sinus paramters [Amp, Freq, phase, c]
     initial = @[0.5,0.5,0.5,0.5]
 
 
