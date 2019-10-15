@@ -184,7 +184,8 @@ proc calc_fitness(population: Population): seq[float] =
 proc genpopulation*(initial: seq[float],n: int, sigma=(options.max_val-options.min_val)/1.5): Population =
     ## generate new population
     ## takes a initial individual and mutates it to generate a broad spectrum of individuals
-    for i in 0..<n:
+    result.add(initial)
+    for i in 1..<n:
         result.add(initial)
         mutate(result[i],sigma,1.0)
     check_limits(result)
