@@ -105,8 +105,8 @@ proc recombine(seq1,seq2 : seq[float]) : seq[float] =
     n_crossover = int( float(len(seq1)) * options.crossover_size)
     for i in 0..<n_crossover:
         k = rand(len(seq1)-1)
-        alpha = 0.75#rand(1.0)#0.5
-        result[k] = alpha * seq1[k] + (1 - alpha) * seq2[k]
+        #alpha = 0.75#rand(1.0)#0.5
+        result[k] = genopt.alpha * seq1[k] + (1 - alpha) * seq2[k]
         #result2[k] = alpha * seq2[k] + (1 - alpha) * seq1[k]
 
 
@@ -127,7 +127,10 @@ proc mutate(s: var seq[float], sigma: float, mutation_rate = options.mutation_ra
             #s[i] += mutation
 
             mutation = (rand(1.0) - 0.5)*2.0 * sigma
-            s[i] += mutation
+            if genopt.mutate_percent:
+                s[i] += s[i]*(mutation*0.1)
+            else:
+                s[i] += mutation
 
 
 proc recombine_population(population: var Population) =
