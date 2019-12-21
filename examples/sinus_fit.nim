@@ -1,12 +1,12 @@
 import gnuplot, os
 import random
 import math
-import genopt
-import genopt/utils
-import genopt/genoptions
+import "../genopt"
+import "../genopt/utils"
+import "../genopt/genoptions"
 
 options.starting_sigma = 2.0
-options.maxiter = 10000
+options.maxiter = 50000
 
 var
     x,y, noisy, fit: seq[float]
@@ -30,12 +30,8 @@ p = genpopulation(initial,20)
 echo(p)
 
 proc calc_fitness(s: seq[float]): float =
-    var diff: seq[float]
-
     for i in 0..<len(noisy):
-        diff.add(noisy[i] - (s[0]*sin(2*Pi*x[i]*s[1]+s[2]) + s[3]) )
-    for d in diff:
-        result += d*d
+        result += (noisy[i] - (s[0]*sin(2*Pi*x[i]*s[1]+s[2]) + s[3]) )^2
     result /= float(n)
 
 fitnessfunction = calc_fitness

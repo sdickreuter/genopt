@@ -62,7 +62,7 @@ import times
 import stats
 import genopt/utils
 import genopt/genoptions
-
+import weave
 
 
 type 
@@ -70,8 +70,9 @@ type
     FitnessFunction* = proc(s: seq[float]): float
 
     ## Type which holds the the whole population with every individual being a seq[float]
-    Population* = seq[seq[float]]
-
+    Population* = object
+        data*: seq[seq[float]]
+        pdata*: ptr UncheckedArray[float32]
 
 var
     ## global variable which holds the options for the algorithm
@@ -84,13 +85,21 @@ var
 
 
 options = initGenoptions()
-
+init(Weave)
+echo("Weave initialized")
 
 #proc handleunfit_proc(unfit: seq[float]): seq[float] =
 #    return unfit
 
 #handleunfit = handleunfit_proc
 
+
+proc newPopulation(): Population =
+    result.data = @[]
+    for i in 0..<len(result.data):
+        result.data[i] = @[]    
+    result.pdata = cast[ptr UncheckedArray[float32]](result.data.unsafeAddr)
+        
 
 
 proc recombine(seq1,seq2 : seq[float]) : seq[float] =
@@ -128,7 +137,9 @@ proc mutate(s: var seq[float], sigma: float, mutation_rate = options.mutation_ra
 
             mutation = (rand(1.0) - 0.5)*2.0 * sigma
             if options.mutate_percent:
-                s[i] += s[i]*(mutation*0.1)
+                s[i] += s[i]*(mutation*0.1)    
+                if s[i] == 0.0:
+                    s[i] = mutation*0.01                
             else:
                 s[i] += mutation
 
@@ -142,56 +153,57 @@ proc recombine_population(population: var Population) =
         i_top,i_med: int
         child: seq[float]
 
-    n = len(population)   
+    n = len(population.data)   
 
     for i in countdown(n-1,4):
         i_top = rand(4)
         #i_med = rand(int(  n / 2 ))
         i_med = rand(n-1)
-        child = recombine(population[i_top], population[i_med])
+        child = recombine(population.data[i_top], population.data[i_med])
         #child = recombine(population[k], population[l])
-        population[i] = child
+        population.data[i] = child
 
 
 proc mutate_population(population: var Population, sigma: float)=
     ## mutate population
     ## fitter individuals don't get mutated or mutated to a lesser extend (smaller sigma)
-    for i in 4..<len(population):
+    for i in 4..<len(population.data):
         # if i < int(population.shape[1]/3):
             if i < 6:
-                mutate(population[i], sigma / 10)  #
+                mutate(population.data[i], sigma / 10)  #
             elif i < 10:
-                mutate(population[i], sigma / 2)  #
+                mutate(population.data[i], sigma / 2)  #
             else:
-                mutate(population[i], sigma)  #
+                mutate(population.data[i], sigma)  #
 
 
-proc check_limits(population: var Population)=
+proc check_limits_population(population: var Population)=
     ## check limits of a population and set values accordingly
-    for j in 0..<len(population):
-        for i in 0..<len(population[0]):
-            if population[j][i] < options.min_val:
-                population[j][i] = options.min_val
-            if population[j][i] > options.max_val:
-                population[j][i] = options.max_val    
+    for j in 0..<len(population.data):
+        for i in 0..<len(population.data[0]):
+            if population.data[j][i] < options.min_val:
+                population.data[j][i] = options.min_val
+            if population.data[j][i] > options.max_val:
+                population.data[j][i] = options.max_val    
 
 
 proc calc_fitness(population: Population): seq[float] =
     ## calculate fitness of every individual of a population using the globally
     ## defined "fitnessfunction"
-    result = zeros(len(population))
-    for i in 0..<len(population):
-        result[i] = fitnessfunction(population[i])
+    result = zeros(len(population.data))
+    for i in 0..<len(population.data):
+        result[i] = fitnessfunction(population.data[i])
 
 
 proc genpopulation*(initial: seq[float],n: int, sigma=(options.max_val-options.min_val)/1.5): Population =
     ## generate new population
     ## takes a initial individual and mutates it to generate a broad spectrum of individuals
-    result.add(initial)
+    result = newPopulation()
+    result.data.add(initial)
     for i in 1..<n:
-        result.add(initial)
-        mutate(result[i],sigma,1.0)
-    check_limits(result)
+        result.data.add(initial)
+        mutate(result.data[i],sigma,1.0)
+    check_limits_population(result)
     #echo(result)
 
 
@@ -231,7 +243,7 @@ proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
     for i in 0..<options.max_iter:
 
         mutate_population(p, sigma)
-        check_limits(p)
+        check_limits_population(p)
 
         fitness = calc_fitness(p)
         
@@ -240,13 +252,13 @@ proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
 
         # rearange fitness and population p by according to fitness
         fitness = fitness[sorted_ind]
-        p = p[sorted_ind]
+        p.data = p.data[sorted_ind]
 
         # check for unfit (fitness == fcNan) individuals and replace them with new ones
-        for i in 0..<len(p):
+        for i in 0..<len(p.data):
             if classify(fitness[i]) == fcNan:
                 #p[i] = handleunfit(p[i]) 
-                p[i] = recombine(p[rand(4)],p[rand(4)])
+                p.data[i] = recombine(p.data[rand(4)],p.data[rand(4)])
                 fitness[i] = 100
 
         recombine_population(p)
@@ -294,7 +306,7 @@ proc iterate*(p: var Population): (seq[float],seq[float],seq[float]) =
             echo(fmt"i: {i:6d}, best: {fitness[0]:4.6f}, sigma: {sigma:4.6f}, corr: {correlation:1.6f}, slope: {slope:1.6f},")
 
     # return best individual as well as time and convergence data
-    result = (p[0], t, convergence)
+    result = (p.data[0], t, convergence)
 
 
 when isMainModule:
